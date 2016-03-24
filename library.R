@@ -7,3 +7,6 @@ library(BGTools)
 
 # set directories
 pt.dir <- "Patients"
+data.dir <- "data"
+
+gzip_files(data.dir)

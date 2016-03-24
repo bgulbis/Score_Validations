@@ -20,7 +20,7 @@ mrn <- select(pts, Medical.Record.Number) %>%
     transmute(mrn = str_replace_all(Medical.Record.Number, ".000000", ""))
 
 # print MRN list for EDW
-edw.mrn <- str_c(mrn$mrn, collapse = ";")
+edw.mrn <- concat_encounters(mrn$mrn)
 print(edw.mrn)
 
 # person identifiers ----
@@ -33,20 +33,26 @@ persons <- select(encounters, Person.ID) %>%
     distinct
 
 # print person list for EDW
-edw.person <- str_c(persons$Person.ID, collapse = ";")
+edw.person <- concat_encounters(persons$Person.ID)
 print(edw.person)
 
 # encounter list ----
 
 # get list of all encounters
-encounters <- read_edw_data(pt.dir, "encounters")
+encounters <- read_edw_data(pt.dir, "encounters") %>%
+    filter(!(facility %in% c("Lifepoint", "University Care Plus")),
+           !(visit.type %in% c("Outreach Lab", "Outpt Diag Services", 
+                               "Research Patient", "Wound Care")))
+
+edw.pie <- concat_encounters(encounters$pie.id, 750)
+print(edw.pie)
 
 # get list of TMC inpatient encounters
-encounters.tmc <- filter(encounters, location == "Memorial Hermann Hospital")
+encounters.tmc <- filter(encounters, facility == "Memorial Hermann Hospital")
 
 inpt.types <- c("Bedded Outpatient", "EC Emergency Center", "Inpatient", 
                 "Inpatient Rehab", "OBS Day Surgery", "OBS Observation Patient")
-encounters.inpt <- filter(encounters, encounter.type %in% inpt.types)
+encounters.inpt <- filter(encounters, visit.type %in% inpt.types)
 
 # check number of patients
 tmp <- encounters.inpt %>%

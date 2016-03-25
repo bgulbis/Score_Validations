@@ -6,7 +6,8 @@ library(stringr)
 library(BGTools)
 
 # set directories
-pt.dir <- "Patients"
+pt.dir <- "patients"
 data.dir <- "data"
+lookup.dir <- "lookup"
 
 gzip_files(data.dir)

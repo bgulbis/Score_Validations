@@ -26,14 +26,14 @@ print(edw.mrn)
 # person identifiers ----
 
 # read in list of encounters
-encounters <- read_data(pt.dir, "identifiers")
+encounters <- read_edw_data(pt.dir, "identifiers", "id")
 
 # get person id's and re-run EDW encounters
-persons <- select(encounters, Person.ID) %>%
+persons <- select(encounters, person.id) %>%
     distinct
 
 # print person list for EDW
-edw.person <- concat_encounters(persons$Person.ID)
+edw.person <- concat_encounters(persons$person.id)
 print(edw.person)
 
 # encounter list ----
@@ -58,5 +58,5 @@ encounters.inpt <- filter(encounters, visit.type %in% inpt.types)
 tmp <- encounters.inpt %>%
     distinct(person.id)
 
-no.outpt <- anti_join(encounters, tmp, by = "person.id") %>%
+outpt.only <- anti_join(encounters, tmp, by = "person.id") %>%
     distinct(person.id)

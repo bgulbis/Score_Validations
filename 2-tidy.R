@@ -55,6 +55,7 @@ data.chads.person <- inner_join(data.chads,
                         stroke * 2, na.rm = TRUE)) %>%
     left_join(distinct(encounters[c("person.id", "mrn")]), by = "person.id")
 
-write_csv(data.chads.person, paste(dir.save, "chads2_score_icd9.csv", sep="/"))
+write_csv(data.chads, paste(dir.save, "chads2_icd9_by_encounter.csv", sep="/"))
+write_csv(data.chads.person, paste(dir.save, "chads2_icd9_by_person.csv", sep="/"))
 
 save_rds(dir.save, "^data")

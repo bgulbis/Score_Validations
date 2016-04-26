@@ -8,55 +8,49 @@ source("0-library.R")
 # excel data ----
 
 # read in patient list from Excel; keep only patients being validated
-xls.name <- paste(pt.dir, "chads hasbled validation.xls", sep = "/")
+xls.name <- paste(dir.pts, "chads hasbled validation.xls", sep = "/")
 pts <- read_excel(xls.name) %>%
     filter(!is.na(Assignment)) 
 
-# make valid column names
-names(pts) <- make.names(names(pts))
-
 # get the MRN field and remove leading 0
-mrn <- select(pts, Medical.Record.Number) %>%
-    transmute(mrn = str_replace_all(Medical.Record.Number, ".000000", ""))
+mrn <- select(pts, `Medical Record Number`) %>%
+    transmute(mrn = str_replace_all(`Medical Record Number`, ".000000", ""))
 
-# print MRN list for EDW
-edw.mrn <- concat_encounters(mrn$mrn)
-print(edw.mrn)
+# print MRN list for EDW, run query "Identifiers - Person by MRN"
+concat_encounters(mrn$mrn)
 
 # person identifiers ----
 
-# read in list of encounters
-encounters <- read_edw_data(pt.dir, "identifiers", "id")
+# read in list of person id's
+ids <- read_edw_data(dir.pts, "mrn")
 
-# get person id's and re-run EDW encounters
-persons <- select(encounters, person.id) %>%
-    distinct
-
-# print person list for EDW
-edw.person <- concat_encounters(persons$person.id)
-print(edw.person)
+# get person id's and run EDW query "Encounters - by Person ID"
+concat_encounters(ids$person.id)
 
 # encounter list ----
 
-# get list of all encounters
-encounters <- read_edw_data(pt.dir, "encounters") %>%
+# get list of all encounters for these patients, remove encounters which are not
+# an inpatient or clinic visit
+encounters <- read_edw_data(dir.pts, "encounters") %>%
     filter(!(facility %in% c("Lifepoint", "University Care Plus")),
            !(visit.type %in% c("Outreach Lab", "Outpt Diag Services", 
-                               "Research Patient", "Wound Care")))
+                               "Research Patient", "Wound Care"))) %>%
+    left_join(ids, by = "person.id")
 
-edw.pie <- concat_encounters(encounters$pie.id, 900)
-print(edw.pie)
+concat_encounters(encounters$pie.id, 900)
+
+save_rds(dir.save, "encounters")
 
 # get list of TMC inpatient encounters
-encounters.tmc <- filter(encounters, facility == "Memorial Hermann Hospital")
-
-inpt.types <- c("Bedded Outpatient", "EC Emergency Center", "Inpatient", 
-                "Inpatient Rehab", "OBS Day Surgery", "OBS Observation Patient")
-encounters.inpt <- filter(encounters, visit.type %in% inpt.types)
+# encounters.tmc <- filter(encounters, facility == "Memorial Hermann Hospital")
+# 
+# inpt.types <- c("Bedded Outpatient", "EC Emergency Center", "Inpatient", 
+#                 "Inpatient Rehab", "OBS Day Surgery", "OBS Observation Patient")
+# encounters.inpt <- filter(encounters, visit.type %in% inpt.types)
 
 # check number of patients
-tmp <- encounters.inpt %>%
-    distinct(person.id)
-
-outpt.only <- anti_join(encounters, tmp, by = "person.id") %>%
-    distinct(person.id)
+# tmp <- encounters.inpt %>%
+#     distinct(person.id)
+# 
+# outpt.only <- anti_join(encounters, tmp, by = "person.id") %>%
+#     distinct(person.id)

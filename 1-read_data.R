@@ -44,7 +44,7 @@ encounters <- read_edw_data(pt.dir, "encounters") %>%
            !(visit.type %in% c("Outreach Lab", "Outpt Diag Services", 
                                "Research Patient", "Wound Care")))
 
-edw.pie <- concat_encounters(encounters$pie.id, 750)
+edw.pie <- concat_encounters(encounters$pie.id, 900)
 print(edw.pie)
 
 # get list of TMC inpatient encounters

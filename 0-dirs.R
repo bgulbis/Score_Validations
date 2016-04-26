@@ -1,7 +1,7 @@
 # dirs.R
 
 # set directories
-pt.dir <- "patients"
-data.dir <- "data"
-lookup.dir <- "lookup"
-
+dir.pts <- "patients"
+dir.data <- "data"
+dir.lookup <- "lookup"
+dir.save <- "data_save"

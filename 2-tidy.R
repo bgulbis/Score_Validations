@@ -2,42 +2,31 @@
 
 source("0-library.R")
 
-raw.demograph <- read_edw_data(data.dir, "demographics") %>% distinct(pie.id)
-raw.diagnosis <- read_edw_data(data.dir, "diagnosis")
-# raw.problems <- read_edw_data(data.dir, "problems")
+tmp <- get_rds(dir.save)
 
-raw.diagnosis <- inner_join(raw.diagnosis, select(encounters, person.id, pie.id), 
+raw.demograph <- read_edw_data(dir.data, "demographics") %>% distinct(pie.id)
+raw.diagnosis <- read_edw_data(dir.data, "icd9")
+# raw.problems <- read_edw_data(dir.data, "problems")
+
+# get ICD9 codes for HTN, DM, CHF, and CVA
+ref.ccs.chads <- read_data(dir.lookup, "ccs_chads.csv") 
+
+raw.diagnosis <- inner_join(raw.diagnosis, encounters[c("person.id", "pie.id")], 
                             by = "pie.id")
 
 # how many patients had no ICD9 codes?
-zero.icd9 <- anti_join(persons, raw.diagnosis, by = "person.id")
+zero.icd9 <- anti_join(encounters, raw.diagnosis, by = "person.id") %>%
+    select(person.id, mrn) %>%
+    distinct
 
-# get ICD9 codes for HTN, DM, CHF, and CVA
-ref.ccs.chads <- read_data(lookup.dir, "ccs_chads.csv") 
+have.icd9 <- anti_join(encounters, zero.icd9, by = "person.id")
 
-tidy.diagnosis <- tidy_data("diagnosis", ref.data = ref.ccs.chads, 
-                            pt.data = raw.diagnosis, patients = encounters)
+tidy.diagnosis <- tidy_data(raw.diagnosis, "icd9", ref.data = ref.ccs.chads, 
+                            patients = have.icd9["pie.id"])
 
-# patients that had ICD9 codes, but no CHF, HTN, DM, or CVA codes
-zero.chads.icd9 <- anti_join(raw.diagnosis, 
-                             inner_join(tidy.diagnosis, encounters, 
-                                        by = "pie.id"), 
-                             by = "person.id") %>%
-    select(person.id) %>%
-    distinct %>%
-    inner_join(raw.demograph, by = "person.id") %>%
-    inner_join(select(encounters, pie.id, admit.datetime), by = "pie.id") %>%
-    group_by(person.id) %>%
-    arrange(admit.datetime) %>%
-    summarize(age = last(age))
-    
-
-# calculate CHADS2 for each encounter with ICD9 codes
-data.chads <- select(encounters, -disposition) %>%
-    arrange(admit.datetime) %>%
-    inner_join(select(raw.demograph, pie.id:race), by = "pie.id") %>%
-    left_join(tidy.diagnosis, by = "pie.id") %>%
-    filter(!is.na(diabetes)) %>%
+# calculate CHADS2 for each encounter
+data.chads <- inner_join(raw.demograph[c("pie.id", "age")], tidy.diagnosis, 
+                         by = "pie.id") %>%
     group_by(pie.id) %>%
     mutate(chads2 = sum(heart.failure, age >= 75, hypertension, diabetes, 
                         stroke * 2, na.rm = TRUE))
@@ -45,7 +34,9 @@ data.chads <- select(encounters, -disposition) %>%
 # calculate a CHADS2 score for each person; assumes that if they ever had an
 # ICD9 code for a disease then it is present even if missing from future
 # encounters
-data.chads.person <- data.chads %>%
+data.chads.person <- inner_join(data.chads, 
+                                encounters[c("person.id", "pie.id", "mrn")], 
+                                by = "pie.id") %>%
     group_by(person.id) %>%
     summarize(heart.failure = sum(heart.failure, na.rm = TRUE),
               hypertension = sum(hypertension, na.rm = TRUE),
@@ -55,11 +46,15 @@ data.chads.person <- data.chads %>%
               chads2.first = first(chads2),
               chads2.last = last(chads2),
               chads2.max = max(chads2)) %>%
-    full_join(zero.chads.icd9, by = c("person.id", "age")) %>%
-    rowwise %>%
+    group_by(person.id) %>%
     mutate(heart.failure = ifelse(heart.failure > 0, TRUE, FALSE),
            hypertension = ifelse(hypertension > 0, TRUE, FALSE),
            diabetes = ifelse(diabetes > 0, TRUE, FALSE),
            stroke = ifelse(stroke > 0, TRUE, FALSE),
            chads2.all = sum(heart.failure, age >= 75, hypertension, diabetes, 
-                        stroke * 2, na.rm = TRUE))
+                        stroke * 2, na.rm = TRUE)) %>%
+    left_join(distinct(encounters[c("person.id", "mrn")]), by = "person.id")
+
+write_csv(data.chads.person, paste(dir.save, "chads2_score_icd9.csv", sep="/"))
+
+save_rds(dir.save, "^data")

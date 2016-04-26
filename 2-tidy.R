@@ -1,6 +1,6 @@
 # tidy.R
 
-source("library.R")
+source("0-library.R")
 
 raw.demograph <- read_edw_data(data.dir, "demographics") %>% distinct(pie.id)
 raw.diagnosis <- read_edw_data(data.dir, "diagnosis")

@@ -5,9 +5,6 @@ library(dplyr)
 library(stringr)
 library(BGTools)
 
-# set directories
-pt.dir <- "patients"
-data.dir <- "data"
-lookup.dir <- "lookup"
+source("0-dirs.R")
 
 gzip_files(data.dir)
